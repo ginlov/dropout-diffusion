@@ -11,6 +11,7 @@ import math
 import numpy as np
 import torch as th
 
+from .dist_util import dev
 from .losses import discretized_gaussian_log_likelihood, normal_kl
 from .nn import mean_flat
 
@@ -679,12 +680,16 @@ class GaussianDiffusion:
             model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs
         )
 
-        kl = th.zeros(true_mean.shape[0], dtype=th.float)
+        kl = th.zeros(true_mean.shape[0], dtype=th.float).to(dev())
         # Feed mean through dropout multiple times
         if self.num_sample != 1:
-            index = th.repeat_interleave(
-                th.arange(0, true_mean.shape[0]), self.num_sample, 0
-            ).long()
+            index = (
+                th.repeat_interleave(
+                    th.arange(0, true_mean.shape[0]), self.num_sample, 0
+                )
+                .long()
+                .to(dev())
+            )
             true_mean = th.repeat_interleave(true_mean, self.num_sample, 0)
             true_log_variance_clipped = th.repeat_interleave(
                 true_log_variance_clipped, self.num_sample, 0
@@ -784,12 +789,14 @@ class GaussianDiffusion:
             target = self.q_posterior_mean_variance(x_start=x_start, x_t=x_t, t=t)[0]
             assert mean_prediction.shape == target.shape == x_start.shape
 
-            terms["mse"] = th.zeros(t.shape[0])
+            terms["mse"] = th.zeros(t.shape[0]).to(dev())
             # Feed mean prediction through dropout multiple times
             if self.num_sample != 1:
-                index = th.repeat_interleave(
-                    th.arange(0, t.shape[0]), self.num_sample, 0
-                ).long()
+                index = (
+                    th.repeat_interleave(th.arange(0, t.shape[0]), self.num_sample, 0)
+                    .long()
+                    .to(dev())
+                )
                 target = th.repeat_interleave(target, self.num_sample, 0)
                 t = th.repeat_interleave(t, self.num_sample, 0).long()
                 mean_prediction = th.repeat_interleave(
