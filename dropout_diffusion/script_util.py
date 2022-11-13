@@ -20,6 +20,7 @@ def model_and_diffusion_defaults():
         num_heads_upsample=-1,
         attention_resolutions="16,8",
         dropout=0.0,
+        diffusion_dropout=0.0,
         learn_sigma=False,
         sigma_small=False,
         class_cond=False,
@@ -47,6 +48,7 @@ def create_model_and_diffusion(
     attention_resolutions,
     dropout,
     diffusion_steps,
+    diffusion_dropout,
     noise_schedule,
     timestep_respacing,
     use_kl,
@@ -71,6 +73,7 @@ def create_model_and_diffusion(
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
+        diffusion_dropout=diffusion_dropout,
         learn_sigma=learn_sigma,
         sigma_small=sigma_small,
         noise_schedule=noise_schedule,
@@ -147,6 +150,7 @@ def sr_create_model_and_diffusion(
     num_heads_upsample,
     attention_resolutions,
     dropout,
+    diffusion_dropout,
     diffusion_steps,
     noise_schedule,
     timestep_respacing,
@@ -173,6 +177,7 @@ def sr_create_model_and_diffusion(
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
+        diffusion_dropout=diffusion_dropout,
         learn_sigma=learn_sigma,
         noise_schedule=noise_schedule,
         use_kl=use_kl,
@@ -230,6 +235,7 @@ def sr_create_model(
 def create_gaussian_diffusion(
     *,
     steps=1000,
+    diffusion_dropout=0.0,
     learn_sigma=False,
     sigma_small=False,
     noise_schedule="linear",
@@ -251,6 +257,7 @@ def create_gaussian_diffusion(
     return SpacedDiffusion(
         use_timesteps=space_timesteps(steps, timestep_respacing),
         betas=betas,
+        diffusion_dropout=diffusion_dropout,
         model_mean_type=(
             gd.ModelMeanType.EPSILON if not predict_xstart else gd.ModelMeanType.START_X
         ),

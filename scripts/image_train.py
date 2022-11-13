@@ -27,6 +27,8 @@ def main():
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
     model.to(dist_util.dev())
+    diffusion.dropout_layer.to(dist_util.dev())
+    diffusion.dropout_layer.train()
     schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion)
 
     logger.log("creating data loader...")

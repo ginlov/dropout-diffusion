@@ -119,15 +119,20 @@ class GaussianDiffusion:
         self,
         *,
         betas,
+        diffusion_dropout,
         model_mean_type,
         model_var_type,
         loss_type,
         rescale_timesteps=False,
     ):
+        self.diffusion_dropout = diffusion_dropout
         self.model_mean_type = model_mean_type
         self.model_var_type = model_var_type
         self.loss_type = loss_type
         self.rescale_timesteps = rescale_timesteps
+
+        # Init dropout layer
+        self.dropout_layer = th.nn.Dropout(p=diffusion_dropout)
 
         # Use float64 for accuracy.
         betas = np.array(betas, dtype=np.float64)
@@ -166,6 +171,10 @@ class GaussianDiffusion:
             (1.0 - self.alphas_cumprod_prev)
             * np.sqrt(alphas)
             / (1.0 - self.alphas_cumprod)
+        )
+
+        self.recip_noise_coef = (
+            self.sqrt_one_minus_alphas_cumprod * np.sqrt(alphas) / (self.betas)
         )
 
     def q_mean_variance(self, x_start, t):
@@ -658,8 +667,13 @@ class GaussianDiffusion:
         out = self.p_mean_variance(
             model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs
         )
+
+        # Dropout on mean prediction
         kl = normal_kl(
-            true_mean, true_log_variance_clipped, out["mean"], out["log_variance"]
+            true_mean,
+            true_log_variance_clipped,
+            self.dropout_layer(out["mean"]),
+            out["log_variance"],
         )
         kl = mean_flat(kl) / np.log(2.0)
 
@@ -707,18 +721,22 @@ class GaussianDiffusion:
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
         elif self.loss_type == LossType.MSE or self.loss_type == LossType.RESCALED_MSE:
-            model_output = model(x_t, self._scale_timesteps(t), **model_kwargs)
+            mean_variance = self.p_mean_variance(model, x=x_t, t=t, **model_kwargs)
+            mean_prediction, log_variance_prediction = (
+                mean_variance["mean"],
+                mean_variance["log_variance"],
+            )
 
             if self.model_var_type in [
                 ModelVarType.LEARNED,
                 ModelVarType.LEARNED_RANGE,
             ]:
                 B, C = x_t.shape[:2]
-                assert model_output.shape == (B, C * 2, *x_t.shape[2:])
-                model_output, model_var_values = th.split(model_output, C, dim=1)
                 # Learn the variance using the variational bound, but don't let
                 # it affect our mean prediction.
-                frozen_out = th.cat([model_output.detach(), model_var_values], dim=1)
+                frozen_out = th.cat(
+                    [mean_prediction.detach(), log_variance_prediction], dim=1
+                )
                 terms["vb"] = self._vb_terms_bpd(
                     model=lambda *args, r=frozen_out: r,
                     x_start=x_start,
@@ -731,15 +749,23 @@ class GaussianDiffusion:
                     # Without a factor of 1/1000, the VB term hurts the MSE term.
                     terms["vb"] *= self.num_timesteps / 1000.0
 
-            target = {
-                ModelMeanType.PREVIOUS_X: self.q_posterior_mean_variance(
-                    x_start=x_start, x_t=x_t, t=t
-                )[0],
-                ModelMeanType.START_X: x_start,
-                ModelMeanType.EPSILON: noise,
-            }[self.model_mean_type]
-            assert model_output.shape == target.shape == x_start.shape
-            terms["mse"] = mean_flat((target - model_output) ** 2)
+            # Always calculate losses base on mean prediction
+            target = self.q_posterior_mean_variance(x_start=x_start, x_t=x_t, t=t)[0]
+            assert mean_prediction.shape == target.shape == x_start.shape
+            # Dropout mean prediction
+            if self.model_mean_type == ModelMeanType.EPSILON:
+                terms["mse"] = mean_flat(
+                    (
+                        _extract_into_tensor(self.recip_noise_coef, t, x_t.shape)
+                        * (target - self.dropout_layer(mean_prediction))
+                    )
+                    ** 2
+                )
+            else:
+                terms["mse"] = mean_flat(
+                    (target - self.dropout_layer(mean_prediction)) ** 2
+                )
+
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
             else:
