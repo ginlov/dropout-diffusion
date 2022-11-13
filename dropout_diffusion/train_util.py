@@ -277,6 +277,8 @@ class TrainLoop:
             logger.logkv("lg_loss_scale", self.lg_loss_scale)
 
     def save(self):
+        print(f"Saving checkpoint {self.step+self.resume_step}")
+
         def save_checkpoint(rate, params):
             state_dict = self._master_params_to_state_dict(params)
             if dist.get_rank() == 0:
