@@ -35,6 +35,8 @@ def main():
     )
     model.to(dist_util.dev())
     model.eval()
+    diffusion.dropout_layer.to(dist_util.dev())
+    diffusion.dropout_layer.eval()
 
     logger.log("sampling...")
     all_images = []

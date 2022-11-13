@@ -12,8 +12,8 @@ repos:
     hooks:
       - id: check-added-large-files
         args:
-          # Max 1MB
-          - '--maxkb=1024'
+          # Max 10MB
+          - '--maxkb=10240'
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v1.2.0
