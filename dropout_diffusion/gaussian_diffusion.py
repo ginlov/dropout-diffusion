@@ -38,6 +38,15 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
             num_diffusion_timesteps,
             lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
         )
+    elif schedule_name == "exponential":
+        beta_max = 0.02
+        alpha_star = 0.998
+        beta = []
+        for i in range(num_diffusion_timesteps):
+            beta.append(
+                beta_max * (alpha_star ** (2 * num_diffusion_timesteps - 2 * i))
+            )
+        return np.array(beta)
     else:
         raise NotImplementedError(f"unknown beta schedule: {schedule_name}")
 
@@ -133,7 +142,6 @@ class GaussianDiffusion:
         self.loss_type = loss_type
         self.rescale_timesteps = rescale_timesteps
 
-        print(self.num_sample)
         # Init dropout layer
         self.dropout_layer = th.nn.Dropout(p=diffusion_dropout)
 
@@ -675,7 +683,7 @@ class GaussianDiffusion:
         # Feed mean through dropout multiple times
         if self.num_sample != 1:
             index = th.repeat_interleave(
-                th.range(0, true_mean.shape[0] - 1), self.num_sample, 0
+                th.arange(0, true_mean.shape[0]), self.num_sample, 0
             ).long()
             true_mean = th.repeat_interleave(true_mean, self.num_sample, 0)
             true_log_variance_clipped = th.repeat_interleave(
@@ -780,7 +788,7 @@ class GaussianDiffusion:
             # Feed mean prediction through dropout multiple times
             if self.num_sample != 1:
                 index = th.repeat_interleave(
-                    th.range(0, t.shape[0] - 1), self.num_sample, 0
+                    th.arange(0, t.shape[0]), self.num_sample, 0
                 ).long()
                 target = th.repeat_interleave(target, self.num_sample, 0)
                 t = th.repeat_interleave(t, self.num_sample, 0).long()
