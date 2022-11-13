@@ -120,17 +120,20 @@ class GaussianDiffusion:
         *,
         betas,
         diffusion_dropout,
+        num_sample,
         model_mean_type,
         model_var_type,
         loss_type,
         rescale_timesteps=False,
     ):
         self.diffusion_dropout = diffusion_dropout
+        self.num_sample = num_sample
         self.model_mean_type = model_mean_type
         self.model_var_type = model_var_type
         self.loss_type = loss_type
         self.rescale_timesteps = rescale_timesteps
 
+        print(self.num_sample)
         # Init dropout layer
         self.dropout_layer = th.nn.Dropout(p=diffusion_dropout)
 
@@ -668,14 +671,34 @@ class GaussianDiffusion:
             model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs
         )
 
+        kl = th.zeros(true_mean.shape[0], dtype=th.float)
+        # Feed mean through dropout multiple times
+        if self.num_sample != 1:
+            index = th.repeat_interleave(
+                th.range(0, true_mean.shape[0] - 1), self.num_sample, 0
+            ).long()
+            true_mean = th.repeat_interleave(true_mean, self.num_sample, 0)
+            true_log_variance_clipped = th.repeat_interleave(
+                true_log_variance_clipped, self.num_sample, 0
+            )
+            out["mean"] = th.repeat_interleave(out["mean"], self.num_sample, 0)
+            out["log_variance"] = th.repeat_interleave(
+                out["log_variance"], self.num_sample, 0
+            )
+
         # Dropout on mean prediction
-        kl = normal_kl(
+        fake_shape_kl = normal_kl(
             true_mean,
             true_log_variance_clipped,
             self.dropout_layer(out["mean"]),
             out["log_variance"],
         )
-        kl = mean_flat(kl) / np.log(2.0)
+        fake_shape_kl = mean_flat(fake_shape_kl) / np.log(2.0)
+
+        if self.num_sample != 1:
+            kl.index_add_(0, index, fake_shape_kl, 1 / self.num_sample)
+        else:
+            kl = fake_shape_kl
 
         decoder_nll = -discretized_gaussian_log_likelihood(
             x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
@@ -752,19 +775,35 @@ class GaussianDiffusion:
             # Always calculate losses base on mean prediction
             target = self.q_posterior_mean_variance(x_start=x_start, x_t=x_t, t=t)[0]
             assert mean_prediction.shape == target.shape == x_start.shape
+
+            terms["mse"] = th.zeros(t.shape[0])
+            # Feed mean prediction through dropout multiple times
+            if self.num_sample != 1:
+                index = th.repeat_interleave(
+                    th.range(0, t.shape[0] - 1), self.num_sample, 0
+                ).long()
+                target = th.repeat_interleave(target, self.num_sample, 0)
+                t = th.repeat_interleave(t, self.num_sample, 0).long()
+                mean_prediction = th.repeat_interleave(
+                    mean_prediction, self.num_sample, 0
+                )
+
             # Dropout mean prediction
             if self.model_mean_type == ModelMeanType.EPSILON:
-                terms["mse"] = mean_flat(
+                mse = mean_flat(
                     (
-                        _extract_into_tensor(self.recip_noise_coef, t, x_t.shape)
+                        _extract_into_tensor(self.recip_noise_coef, t, target.shape)
                         * (target - self.dropout_layer(mean_prediction))
                     )
                     ** 2
                 )
             else:
-                terms["mse"] = mean_flat(
-                    (target - self.dropout_layer(mean_prediction)) ** 2
-                )
+                mse = mean_flat((target - self.dropout_layer(mean_prediction)) ** 2)
+
+            if self.num_sample != 1:
+                terms["mse"].index_add_(0, index, mse, alpha=1 / self.num_sample)
+            else:
+                terms["mse"] = mse
 
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]

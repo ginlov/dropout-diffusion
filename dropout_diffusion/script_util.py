@@ -21,6 +21,7 @@ def model_and_diffusion_defaults():
         attention_resolutions="16,8",
         dropout=0.0,
         diffusion_dropout=0.0,
+        num_sample=1,
         learn_sigma=False,
         sigma_small=False,
         class_cond=False,
@@ -49,6 +50,7 @@ def create_model_and_diffusion(
     dropout,
     diffusion_steps,
     diffusion_dropout,
+    num_sample,
     noise_schedule,
     timestep_respacing,
     use_kl,
@@ -74,6 +76,7 @@ def create_model_and_diffusion(
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
         diffusion_dropout=diffusion_dropout,
+        num_sample=num_sample,
         learn_sigma=learn_sigma,
         sigma_small=sigma_small,
         noise_schedule=noise_schedule,
@@ -178,6 +181,7 @@ def sr_create_model_and_diffusion(
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
         diffusion_dropout=diffusion_dropout,
+        num_sample=num_sample,
         learn_sigma=learn_sigma,
         noise_schedule=noise_schedule,
         use_kl=use_kl,
@@ -236,6 +240,7 @@ def create_gaussian_diffusion(
     *,
     steps=1000,
     diffusion_dropout=0.0,
+    num_sample=1,
     learn_sigma=False,
     sigma_small=False,
     noise_schedule="linear",
@@ -258,6 +263,7 @@ def create_gaussian_diffusion(
         use_timesteps=space_timesteps(steps, timestep_respacing),
         betas=betas,
         diffusion_dropout=diffusion_dropout,
+        num_sample=num_sample,
         model_mean_type=(
             gd.ModelMeanType.EPSILON if not predict_xstart else gd.ModelMeanType.START_X
         ),
