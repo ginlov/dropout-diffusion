@@ -1,0 +1,6 @@
+mpi4py
+numpy
+pillow
+black
+isort
+pre-commit
