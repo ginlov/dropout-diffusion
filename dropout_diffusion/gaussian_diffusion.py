@@ -444,6 +444,8 @@ class GaussianDiffusion:
         saved_noise = []
         if save_noise is True:
             if noise is None:
+                if device is None:
+                    device = next(model.parameters()).device
                 noise = th.randn(*shape, device=device)
                 saved_noise.append(noise)
         for sample in self.p_sample_loop_progressive(
