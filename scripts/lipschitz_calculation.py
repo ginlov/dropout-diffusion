@@ -102,6 +102,7 @@ def main():
             lipschitz_constant["normmax_norm2"],
             th.max(norm_2_dis_output / norm_max_dis_input).item(),
         )
+        logger.log(f"Running {_+1} loops")
 
     logger.log(f"Lipschitz constant {lipschitz_constant}")
 
