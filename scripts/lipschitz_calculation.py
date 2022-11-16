@@ -74,9 +74,9 @@ def main():
         norm_max_dis_output = th.nn.functional.pdist(sample, p=float("inf"))
         norm_2_dis_output = th.nn.functional.pdist(sample, p=2)
 
-        norm_1_dis_input = th.nn.functional.pdist(sample, p=1)
-        norm_2_dis_input = th.nn.functional.pdist(sample, p=2)
-        norm_max_dis_input = th.nn.functional.pdist(sample, p=float("inf"))
+        norm_1_dis_input = th.nn.functional.pdist(noise, p=1)
+        norm_2_dis_input = th.nn.functional.pdist(noise, p=2)
+        norm_max_dis_input = th.nn.functional.pdist(noise, p=float("inf"))
 
         lipschitz_constant["norm1_normmax"] = max(
             lipschitz_constant["norm1_normmax"],
