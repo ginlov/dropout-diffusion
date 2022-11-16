@@ -405,7 +405,11 @@ class GaussianDiffusion:
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
         )  # no noise when t == 0
         sample = out["mean"] + nonzero_mask * th.exp(0.5 * out["log_variance"]) * noise
-        return {"sample": sample, "pred_xstart": out["pred_xstart"]}
+        return {
+            "sample": sample,
+            "pred_xstart": out["pred_xstart"],
+            "noise": nonzero_mask * noise,
+        }
 
     def p_sample_loop(
         self,
@@ -417,6 +421,7 @@ class GaussianDiffusion:
         model_kwargs=None,
         device=None,
         progress=False,
+        save_noise=False,
     ):
         """
         Generate samples from the model.
@@ -436,6 +441,11 @@ class GaussianDiffusion:
         :return: a non-differentiable batch of samples.
         """
         final = None
+        saved_noise = []
+        if save_noise is True:
+            if noise is None:
+                noise = th.randn(*shape, device=device)
+                saved_noise.append(noise)
         for sample in self.p_sample_loop_progressive(
             model,
             shape,
@@ -447,6 +457,10 @@ class GaussianDiffusion:
             progress=progress,
         ):
             final = sample
+            if save_noise is True:
+                saved_noise.append(final["noise"])
+        if save_noise is True:
+            return final["sample"], saved_noise
         return final["sample"]
 
     def p_sample_loop_progressive(
@@ -506,6 +520,7 @@ class GaussianDiffusion:
         denoised_fn=None,
         model_kwargs=None,
         eta=0.0,
+        save_noise=False,
     ):
         """
         Sample x_{t-1} from the model using DDIM.
