@@ -65,7 +65,7 @@ def main():
             model_kwargs=model_kwargs,
             save_noise=True,
         )
-        noise = th.concatenate(
+        noise = th.cat(
             noise[:-1], dim=1
         )  # Remove final noise because no noise at timestep 0
         noise = noise.view(args.batch_size, -1)
