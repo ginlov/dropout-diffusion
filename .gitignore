@@ -3,3 +3,4 @@ cifar*/
 log*/
 *.egg-info/
 sample_log/
+venv/
