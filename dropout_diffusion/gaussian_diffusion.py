@@ -42,9 +42,9 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     elif schedule_name == "exponential":
         beta_max = 0.05 * 1000 / num_diffusion_timesteps
         beta_min = 0.0001 * 1000 / num_diffusion_timesteps
-        alpha_star = (beta_min / beta_max)**(1/(2*num_diffusion_timesteps - 2))
+        alpha_star = (beta_min / beta_max) ** (1 / (2 * num_diffusion_timesteps - 2))
         print(alpha_star)
-        #alpha_star = 0.998
+        # alpha_star = 0.998
         beta = []
         for i in range(num_diffusion_timesteps):
             beta.append(
@@ -777,7 +777,9 @@ class GaussianDiffusion:
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
         elif self.loss_type == LossType.MSE or self.loss_type == LossType.RESCALED_MSE:
-            mean_variance = self.p_mean_variance(model, x=x_t, t=t, **model_kwargs)
+            mean_variance = self.p_mean_variance(
+                model, x=x_t, t=t, clip_denoised=False, **model_kwargs
+            )
             mean_prediction, log_variance_prediction = (
                 mean_variance["mean"],
                 mean_variance["log_variance"],
