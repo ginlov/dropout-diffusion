@@ -7,6 +7,7 @@ Docstrings have been added, as well as DDIM sampling and a new collection of bet
 
 import enum
 import math
+import timeit
 
 import numpy as np
 import torch as th
@@ -812,6 +813,7 @@ class GaussianDiffusion:
             assert mean_prediction.shape == target.shape == x_start.shape
 
             terms["mse"] = th.zeros(t.shape[0]).to(dev())
+
             # Feed mean prediction through dropout multiple times
             if self.num_sample != 1:
                 index = (
@@ -825,17 +827,37 @@ class GaussianDiffusion:
                     mean_prediction, self.num_sample, 0
                 )
 
+            dropout_mean = th.zeros(
+                *mean_prediction.shape, device=mean_prediction.device
+            )
+            for id, i in enumerate(t):
+                if i != 0:
+                    dropout_mean[id] = self.dropout_layer(mean_prediction[id])
+                else:
+                    dropout_mean[id] = mean_prediction[id]
+
             # Dropout mean prediction
+            # if self.model_mean_type == ModelMeanType.EPSILON:
+            #     mse = mean_flat(
+            #         (
+            #             _extract_into_tensor(self.recip_noise_coef, t, target.shape)
+            #             * (target - self.dropout_layer(mean_prediction))
+            #         )
+            #         ** 2
+            #     )
+            # else:
+            #     mse = mean_flat((target - self.dropout_layer(mean_prediction)) ** 2)
+
             if self.model_mean_type == ModelMeanType.EPSILON:
                 mse = mean_flat(
                     (
                         _extract_into_tensor(self.recip_noise_coef, t, target.shape)
-                        * (target - self.dropout_layer(mean_prediction))
+                        * (target - dropout_mean)
                     )
                     ** 2
                 )
             else:
-                mse = mean_flat((target - self.dropout_layer(mean_prediction)) ** 2)
+                mse = mean_flat((target - dropout_mean) ** 2)
 
             if self.num_sample != 1:
                 terms["mse"].index_add_(0, index, mse, alpha=1 / self.num_sample)
