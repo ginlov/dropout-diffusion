@@ -834,7 +834,7 @@ class GaussianDiffusion:
                 if i != 0:
                     dropout_mean[id] = self.dropout_layer(mean_prediction[id])
                 else:
-                    dropout_mean[id] = mean_prediction[id]
+                    dropout_mean[id] = mean_prediction[id] * (1/(1-self.dropout_layer.p))
 
             # Dropout mean prediction
             # if self.model_mean_type == ModelMeanType.EPSILON:

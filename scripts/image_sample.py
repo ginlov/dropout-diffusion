@@ -93,7 +93,7 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        clip_denoised=True,
+        clip_denoised=False,
         num_samples=10000,
         batch_size=16,
         use_ddim=False,
