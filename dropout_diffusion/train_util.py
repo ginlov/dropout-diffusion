@@ -253,7 +253,6 @@ class TrainLoop:
         #         print(self.diffusion.weight_clipping)
         # Weight clipping
         if self.diffusion.weight_clipping:
-            print("ok")
             with th.no_grad():
                 for param in self.master_params:
                     th.clamp_(param, -1, 1)
