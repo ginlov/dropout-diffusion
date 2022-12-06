@@ -237,9 +237,10 @@ class TrainLoop:
         self._anneal_lr()
         self.opt.step()
         # Weight clipping
-        with th.no_grad():
-            for param in self.master_params:
-                th.clamp_(param, -1, 1)
+        if self.diffusion.weight_clipping:
+            with th.no_grad():
+                for param in self.master_params:
+                    th.clamp_(param, -1, 1)
         for rate, params in zip(self.ema_rate, self.ema_params):
             update_ema(params, self.master_params, rate=rate)
         master_params_to_model_params(self.model_params, self.master_params)
@@ -249,10 +250,13 @@ class TrainLoop:
         self._log_grad_norm()
         self._anneal_lr()
         self.opt.step()
+        #         print(self.diffusion.weight_clipping)
         # Weight clipping
-        with th.no_grad():
-            for param in self.master_params:
-                th.clamp_(param, -1, 1)
+        if self.diffusion.weight_clipping:
+            print("ok")
+            with th.no_grad():
+                for param in self.master_params:
+                    th.clamp_(param, -1, 1)
         for rate, params in zip(self.ema_rate, self.ema_params):
             update_ema(params, self.master_params, rate=rate)
 

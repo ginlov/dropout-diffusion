@@ -44,7 +44,6 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
         beta_max = 0.05 * 1000 / num_diffusion_timesteps
         beta_min = 0.0001 * 1000 / num_diffusion_timesteps
         alpha_star = (beta_min / beta_max) ** (1 / (2 * num_diffusion_timesteps - 2))
-        print(alpha_star)
         # alpha_star = 0.998
         beta = []
         for i in range(num_diffusion_timesteps):
@@ -133,14 +132,20 @@ class GaussianDiffusion:
         self,
         *,
         betas,
+        weight_clipping,
         diffusion_dropout,
+        dropout_at_beginning_steps,
+        step_start_dropout,
         num_sample,
         model_mean_type,
         model_var_type,
         loss_type,
         rescale_timesteps=False,
     ):
+        self.weight_clipping = weight_clipping
         self.diffusion_dropout = diffusion_dropout
+        self.dropout_at_beginning_steps = dropout_at_beginning_steps
+        self.step_start_dropout = step_start_dropout
         self.num_sample = num_sample
         self.model_mean_type = model_mean_type
         self.model_var_type = model_var_type
@@ -827,26 +832,22 @@ class GaussianDiffusion:
                     mean_prediction, self.num_sample, 0
                 )
 
-            dropout_mean = th.zeros(
-                *mean_prediction.shape, device=mean_prediction.device
-            )
-            for id, i in enumerate(t):
-                if i != 0:
-                    dropout_mean[id] = self.dropout_layer(mean_prediction[id])
+            if self.dropout_at_beginning_steps is False:
+                dropout_mask = t >= self.step_start_dropout
+                if not any(dropout_mask):
+                    dropout_mean = self.dropout_layer(mean_prediction)
                 else:
-                    dropout_mean[id] = mean_prediction[id] * (1/(1-self.dropout_layer.p))
-
-            # Dropout mean prediction
-            # if self.model_mean_type == ModelMeanType.EPSILON:
-            #     mse = mean_flat(
-            #         (
-            #             _extract_into_tensor(self.recip_noise_coef, t, target.shape)
-            #             * (target - self.dropout_layer(mean_prediction))
-            #         )
-            #         ** 2
-            #     )
-            # else:
-            #     mse = mean_flat((target - self.dropout_layer(mean_prediction)) ** 2)
+                    dropout_candidates = mean_prediction[dropout_mask]
+                    non_dropout_candidates = mean_prediction[~dropout_mask]
+                    mean_prediction[dropout_mask] = self.dropout_layer(
+                        dropout_candidates
+                    )
+                    mean_prediction[~dropout_mask] = non_dropout_candidates * (
+                        1 / (1 - self.dropout_layer.p)
+                    )
+                    dropout_mean = mean_prediction
+            else:
+                dropout_mean = self.dropout_layer(mean_prediction)
 
             if self.model_mean_type == ModelMeanType.EPSILON:
                 mse = mean_flat(
