@@ -768,6 +768,7 @@ class GaussianDiffusion:
         if noise is None:
             noise = th.randn_like(x_start)
         x_t = self.q_sample(x_start, t, noise=noise)
+        x_t = x_t * (1 - self.dropout_layer.p)
 
         terms = {}
 
