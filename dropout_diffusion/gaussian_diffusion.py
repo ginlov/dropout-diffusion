@@ -767,8 +767,8 @@ class GaussianDiffusion:
             model_kwargs = {}
         if noise is None:
             noise = th.randn_like(x_start)
-        x_t = self.q_sample(x_start, t, noise=noise)
-        x_t = x_t * (1 - self.dropout_layer.p)
+        x_t_raw = self.q_sample(x_start, t, noise=noise)
+        x_t = x_t_raw * (1 - self.dropout_layer.p)
 
         terms = {}
 
@@ -815,7 +815,9 @@ class GaussianDiffusion:
                     terms["vb"] *= self.num_timesteps / 1000.0
 
             # Always calculate losses base on mean prediction
-            target = self.q_posterior_mean_variance(x_start=x_start, x_t=x_t, t=t)[0]
+            target = self.q_posterior_mean_variance(x_start=x_start, x_t=x_t_raw, t=t)[
+                0
+            ]
             assert mean_prediction.shape == target.shape == x_start.shape
 
             terms["mse"] = th.zeros(t.shape[0]).to(dev())
