@@ -41,8 +41,8 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
             lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
         )
     elif schedule_name == "exponential":
-        beta_max = 0.05 * 1000 / num_diffusion_timesteps
-        beta_min = 0.0001 * 1000 / num_diffusion_timesteps
+        beta_max = min(0.05 * 1000 / num_diffusion_timesteps, 0.98)
+        beta_min = 0.0001
         alpha_star = (beta_min / beta_max) ** (1 / (2 * num_diffusion_timesteps - 2))
         # alpha_star = 0.998
         beta = []
