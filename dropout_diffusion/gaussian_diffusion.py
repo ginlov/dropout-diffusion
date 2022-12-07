@@ -768,7 +768,8 @@ class GaussianDiffusion:
         if noise is None:
             noise = th.randn_like(x_start)
         x_t_raw = self.q_sample(x_start, t, noise=noise)
-        x_t = x_t_raw * (1 - self.dropout_layer.p)
+        #         x_t = x_t_raw * (1 - self.dropout_layer.p)
+        x_t = self.dropout_layer(x_t_raw)
 
         terms = {}
 
@@ -822,35 +823,7 @@ class GaussianDiffusion:
 
             terms["mse"] = th.zeros(t.shape[0]).to(dev())
 
-            # Feed mean prediction through dropout multiple times
-            if self.num_sample != 1:
-                index = (
-                    th.repeat_interleave(th.arange(0, t.shape[0]), self.num_sample, 0)
-                    .long()
-                    .to(dev())
-                )
-                target = th.repeat_interleave(target, self.num_sample, 0)
-                t = th.repeat_interleave(t, self.num_sample, 0).long()
-                mean_prediction = th.repeat_interleave(
-                    mean_prediction, self.num_sample, 0
-                )
-
-            if self.dropout_at_beginning_steps is False:
-                dropout_mask = t >= self.step_start_dropout
-                if not any(dropout_mask):
-                    dropout_mean = self.dropout_layer(mean_prediction)
-                else:
-                    dropout_candidates = mean_prediction[dropout_mask]
-                    non_dropout_candidates = mean_prediction[~dropout_mask]
-                    mean_prediction[dropout_mask] = self.dropout_layer(
-                        dropout_candidates
-                    )
-                    mean_prediction[~dropout_mask] = non_dropout_candidates * (
-                        1 / (1 - self.dropout_layer.p)
-                    )
-                    dropout_mean = mean_prediction
-            else:
-                dropout_mean = self.dropout_layer(mean_prediction)
+            dropout_mean = mean_prediction
 
             if self.model_mean_type == ModelMeanType.EPSILON:
                 mse = mean_flat(
@@ -863,10 +836,7 @@ class GaussianDiffusion:
             else:
                 mse = mean_flat((target - dropout_mean) ** 2)
 
-            if self.num_sample != 1:
-                terms["mse"].index_add_(0, index, mse, alpha=1 / self.num_sample)
-            else:
-                terms["mse"] = mse
+            terms["mse"] = mse
 
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]

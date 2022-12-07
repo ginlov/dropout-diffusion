@@ -57,7 +57,7 @@ def main():
             clip_denoised=args.clip_denoised,
             model_kwargs=model_kwargs,
         )
-        sample *= 1 / (1 - args.diffusion_dropout)
+        # sample *= 1 / (1 - args.diffusion_dropout)
         sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
         sample = sample.permute(0, 2, 3, 1)
         sample = sample.contiguous()
