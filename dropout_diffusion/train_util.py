@@ -153,6 +153,8 @@ class TrainLoop:
                 opt_checkpoint, map_location=dist_util.dev()
             )
             self.opt.load_state_dict(state_dict)
+            for i in range(len(self.opt.param_groups)):
+                self.opt.param_groups[i]["capturable"] = True
 
     def _setup_fp16(self):
         self.master_params = make_master_params(self.model_params)
