@@ -76,7 +76,7 @@ def main():
                 ]
                 dist.all_gather(gathered_labels, classes)
                 all_labels[i].extend([labels.cpu().numpy() for labels in gathered_labels])
-        logger.log(f"created {len(all_images) * args.batch_size} samples")
+        logger.log(f"created {len(all_images[0]) * args.batch_size} samples")
 
     for i, result_image in enumerate(all_images):
         arr = np.concatenate(result_image, axis=0)
