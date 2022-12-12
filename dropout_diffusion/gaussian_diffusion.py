@@ -425,6 +425,7 @@ class GaussianDiffusion:
         model,
         shape,
         noise=None,
+        num_step_save=1,
         clip_denoised=True,
         denoised_fn=None,
         model_kwargs=None,
@@ -450,6 +451,7 @@ class GaussianDiffusion:
         :return: a non-differentiable batch of samples.
         """
         final = None
+        result_sample = []
         saved_noise = []
         if save_noise is True:
             if noise is None:
@@ -457,7 +459,7 @@ class GaussianDiffusion:
                     device = next(model.parameters()).device
                 noise = th.randn(*shape, device=device)
                 saved_noise.append(noise)
-        for sample in self.p_sample_loop_progressive(
+        for sample, x_start, t in self.p_sample_loop_progressive(
             model,
             shape,
             noise=noise,
@@ -468,11 +470,13 @@ class GaussianDiffusion:
             progress=progress,
         ):
             final = sample
+            if t < num_step_save:
+                result_sample.append(x_start)
             if save_noise is True:
                 saved_noise.append(final["noise"])
         if save_noise is True:
             return final["sample"], saved_noise
-        return final["sample"]
+        return result_sample
 
     def p_sample_loop_progressive(
         self,
@@ -519,7 +523,7 @@ class GaussianDiffusion:
                     denoised_fn=denoised_fn,
                     model_kwargs=model_kwargs,
                 )
-                yield out
+                yield out, out["pred_xstart"], t[0].item()
                 img = out["sample"]
 
     def ddim_sample(
