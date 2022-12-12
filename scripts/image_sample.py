@@ -44,7 +44,7 @@ def main():
     for i in range(args.num_step_save):
         all_images.append([])
         all_labels.append([])
-    while len(all_images) * args.batch_size < args.num_samples:
+    while len(all_images[0]) * args.batch_size < args.num_samples:
         model_kwargs = {}
         if args.class_cond:
             classes = th.randint(
