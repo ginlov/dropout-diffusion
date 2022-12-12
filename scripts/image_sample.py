@@ -41,7 +41,7 @@ def main():
     logger.log("sampling...")
     all_images = []
     all_labels = []
-    for i in range args.num_step_save:
+    for i in range(args.num_step_save):
         all_images.append([])
         all_labels.append([])
     while len(all_images) * args.batch_size < args.num_samples:
