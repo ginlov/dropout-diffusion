@@ -67,7 +67,9 @@ def main():
             sample = sample.permute(0, 2, 3, 1)
             sample = sample.contiguous()
 
-            gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
+            gathered_samples = [
+                th.zeros_like(sample) for _ in range(dist.get_world_size())
+            ]
             dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
             all_images[i].extend([sample.cpu().numpy() for sample in gathered_samples])
             if args.class_cond:
@@ -75,7 +77,9 @@ def main():
                     th.zeros_like(classes) for _ in range(dist.get_world_size())
                 ]
                 dist.all_gather(gathered_labels, classes)
-                all_labels[i].extend([labels.cpu().numpy() for labels in gathered_labels])
+                all_labels[i].extend(
+                    [labels.cpu().numpy() for labels in gathered_labels]
+                )
         logger.log(f"created {len(all_images[0]) * args.batch_size} samples")
 
     for i, result_image in enumerate(all_images):
@@ -86,7 +90,10 @@ def main():
             label_arr = label_arr[: args.num_samples]
         if dist.get_rank() == 0:
             shape_str = "x".join([str(x) for x in arr.shape])
-            out_path = os.path.join(logger.get_dir(), f"samples_{shape_str}_{args.num_step_save - i - 1}.npz")
+            out_path = os.path.join(
+                logger.get_dir(),
+                f"samples_{shape_str}_{args.num_step_save[len(args.num_step_save) - i - 1]}.npz",
+            )
             logger.log(f"saving to {out_path}")
             if args.class_cond:
                 np.savez(out_path, arr, label_arr)
@@ -101,7 +108,7 @@ def create_argparser():
     defaults = dict(
         clip_denoised=False,
         num_samples=10000,
-        num_step_save=1,
+        num_step_save=[0],
         batch_size=16,
         use_ddim=False,
         model_path="",

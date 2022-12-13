@@ -22,9 +22,6 @@ def model_and_diffusion_defaults():
         dropout=0.0,
         weight_clipping=False,
         diffusion_dropout=0.0,
-        dropout_at_beginning_steps=True,
-        step_start_dropout=0,
-        num_sample=1,
         learn_sigma=False,
         sigma_small=False,
         class_cond=False,
@@ -54,9 +51,6 @@ def create_model_and_diffusion(
     dropout,
     diffusion_steps,
     diffusion_dropout,
-    dropout_at_beginning_steps,
-    step_start_dropout,
-    num_sample,
     noise_schedule,
     timestep_respacing,
     use_kl,
@@ -83,9 +77,6 @@ def create_model_and_diffusion(
         steps=diffusion_steps,
         weight_clipping=weight_clipping,
         diffusion_dropout=diffusion_dropout,
-        dropout_at_beginning_steps=dropout_at_beginning_steps,
-        step_start_dropout=step_start_dropout,
-        num_sample=num_sample,
         learn_sigma=learn_sigma,
         sigma_small=sigma_small,
         noise_schedule=noise_schedule,
@@ -145,9 +136,6 @@ def create_gaussian_diffusion(
     steps=1000,
     weight_clipping=False,
     diffusion_dropout=0.0,
-    dropout_at_beginning_steps=True,
-    step_start_dropout=0,
-    num_sample=1,
     learn_sigma=False,
     sigma_small=False,
     noise_schedule="linear",
@@ -171,9 +159,6 @@ def create_gaussian_diffusion(
         betas=betas,
         weight_clipping=weight_clipping,
         diffusion_dropout=diffusion_dropout,
-        dropout_at_beginning_steps=dropout_at_beginning_steps,
-        step_start_dropout=step_start_dropout,
-        num_sample=num_sample,
         model_mean_type=(
             gd.ModelMeanType.EPSILON if not predict_xstart else gd.ModelMeanType.START_X
         ),
@@ -193,12 +178,15 @@ def create_gaussian_diffusion(
 
 def add_dict_to_argparser(parser, default_dict):
     for k, v in default_dict.items():
-        v_type = type(v)
-        if v is None:
-            v_type = str
-        elif isinstance(v, bool):
-            v_type = str2bool
-        parser.add_argument(f"--{k}", default=v, type=v_type)
+        if isinstance(v, list):
+            parser.add_argument(f"--{k}", nargs="+", type=type(v[0]))
+        else:
+            v_type = type(v)
+            if v is None:
+                v_type = str
+            elif isinstance(v, bool):
+                v_type = str2bool
+            parser.add_argument(f"--{k}", default=v, type=v_type)
 
 
 def args_to_dict(args, keys):

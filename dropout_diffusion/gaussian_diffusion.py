@@ -134,9 +134,6 @@ class GaussianDiffusion:
         betas,
         weight_clipping,
         diffusion_dropout,
-        dropout_at_beginning_steps,
-        step_start_dropout,
-        num_sample,
         model_mean_type,
         model_var_type,
         loss_type,
@@ -144,9 +141,6 @@ class GaussianDiffusion:
     ):
         self.weight_clipping = weight_clipping
         self.diffusion_dropout = diffusion_dropout
-        self.dropout_at_beginning_steps = dropout_at_beginning_steps
-        self.step_start_dropout = step_start_dropout
-        self.num_sample = num_sample
         self.model_mean_type = model_mean_type
         self.model_var_type = model_var_type
         self.loss_type = loss_type
@@ -425,7 +419,7 @@ class GaussianDiffusion:
         model,
         shape,
         noise=None,
-        num_step_save=1,
+        num_step_save=[0],
         clip_denoised=True,
         denoised_fn=None,
         model_kwargs=None,
@@ -470,7 +464,7 @@ class GaussianDiffusion:
             progress=progress,
         ):
             final = sample
-            if t < num_step_save:
+            if int(t) in num_step_save:
                 result_sample.append(x_start)
             if save_noise is True:
                 saved_noise.append(final["noise"])
@@ -710,38 +704,10 @@ class GaussianDiffusion:
             model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs
         )
 
-        kl = th.zeros(true_mean.shape[0], dtype=th.float).to(dev())
-        # Feed mean through dropout multiple times
-        if self.num_sample != 1:
-            index = (
-                th.repeat_interleave(
-                    th.arange(0, true_mean.shape[0]), self.num_sample, 0
-                )
-                .long()
-                .to(dev())
-            )
-            true_mean = th.repeat_interleave(true_mean, self.num_sample, 0)
-            true_log_variance_clipped = th.repeat_interleave(
-                true_log_variance_clipped, self.num_sample, 0
-            )
-            out["mean"] = th.repeat_interleave(out["mean"], self.num_sample, 0)
-            out["log_variance"] = th.repeat_interleave(
-                out["log_variance"], self.num_sample, 0
-            )
-
-        # Dropout on mean prediction
-        fake_shape_kl = normal_kl(
-            true_mean,
-            true_log_variance_clipped,
-            self.dropout_layer(out["mean"]),
-            out["log_variance"],
+        kl = normal_kl(
+            true_mean, true_log_variance_clipped, out["mean"], out["log_variance"]
         )
-        fake_shape_kl = mean_flat(fake_shape_kl) / np.log(2.0)
-
-        if self.num_sample != 1:
-            kl.index_add_(0, index, fake_shape_kl, 1 / self.num_sample)
-        else:
-            kl = fake_shape_kl
+        kl = mean_flat(kl) / np.log(2.0)
 
         decoder_nll = -discretized_gaussian_log_likelihood(
             x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
@@ -772,7 +738,6 @@ class GaussianDiffusion:
         if noise is None:
             noise = th.randn_like(x_start)
         x_t_raw = self.q_sample(x_start, t, noise=noise)
-        #         x_t = x_t_raw * (1 - self.dropout_layer.p)
         x_t = self.dropout_layer(x_t_raw)
 
         terms = {}
@@ -797,6 +762,10 @@ class GaussianDiffusion:
                 mean_variance["log_variance"],
             )
 
+            true_mean, _, true_log_variance_clipped = self.q_posterior_mean_variance(
+                x_start=x_start, x_t=x_t_raw, t=t
+            )
+
             if self.model_var_type in [
                 ModelVarType.LEARNED,
                 ModelVarType.LEARNED_RANGE,
@@ -804,41 +773,43 @@ class GaussianDiffusion:
                 B, C = x_t.shape[:2]
                 # Learn the variance using the variational bound, but don't let
                 # it affect our mean prediction.
-                frozen_out = th.cat(
-                    [mean_prediction.detach(), log_variance_prediction], dim=1
+                kl = normal_kl(
+                    true_mean,
+                    true_log_variance_clipped,
+                    mean_prediction.detach(),
+                    log_variance_prediction,
                 )
-                terms["vb"] = self._vb_terms_bpd(
-                    model=lambda *args, r=frozen_out: r,
-                    x_start=x_start,
-                    x_t=x_t,
-                    t=t,
-                    clip_denoised=False,
-                )["output"]
+                kl = mean_flat(kl) / np.log(2.0)
+
+                decoder_nll = -discretized_gaussian_log_likelihood(
+                    x_start, means=out["mean"], log_scales=0.5 * log_variance_prediction
+                )
+                assert decoder_nll.shape == x_start.shape
+                decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+
+                # At the first timestep return the decoder NLL,
+                # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
+                output = th.where((t == 0), decoder_nll, kl)
+                terms["vb"] = output
+
                 if self.loss_type == LossType.RESCALED_MSE:
                     # Divide by 1000 for equivalence with initial implementation.
                     # Without a factor of 1/1000, the VB term hurts the MSE term.
                     terms["vb"] *= self.num_timesteps / 1000.0
 
             # Always calculate losses base on mean prediction
-            target = self.q_posterior_mean_variance(x_start=x_start, x_t=x_t_raw, t=t)[
-                0
-            ]
-            assert mean_prediction.shape == target.shape == x_start.shape
-
-            terms["mse"] = th.zeros(t.shape[0]).to(dev())
-
-            dropout_mean = mean_prediction
+            assert mean_prediction.shape == true_mean.shape == x_start.shape
 
             if self.model_mean_type == ModelMeanType.EPSILON:
                 mse = mean_flat(
                     (
-                        _extract_into_tensor(self.recip_noise_coef, t, target.shape)
-                        * (target - dropout_mean)
+                        _extract_into_tensor(self.recip_noise_coef, t, true_mean.shape)
+                        * (true_mean - mean_prediction)
                     )
                     ** 2
                 )
             else:
-                mse = mean_flat((target - dropout_mean) ** 2)
+                mse = mean_flat((true_mean - mean_prediction) ** 2)
 
             terms["mse"] = mse
 
