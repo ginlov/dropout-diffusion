@@ -17,8 +17,6 @@
 |use_checkpoint | bool = False | If true, model will be loaded from the checkpoint path |
 |use_scale_shift_norm | bool = True | |
 |weight_clipping | bool = False ||
-|dropout_at_beginning_steps| bool = True ||
-|step_start_dropout| int = 0 ||
 
 ## Model config
 |Argument            | Type hint, default value | Help |
