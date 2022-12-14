@@ -270,13 +270,14 @@ class GaussianDiffusion:
             for i in tqdm(range(num_batch)):
                 print(i)
                 minibatch, minibatch_cond = next(data)
+                minibatch = minibatch.to(device)
                 noise = th.rand(*minibatch.shape).to(device)
                 if minibatch_cond is None:
                     minibatch_cond = {}
 
                 for j in range(len(self.posterior_variance)):
                     t = th.from_numpy(np.array([j]*batch_size)).long().to(device)
-                    x_t = self.q_sample(minibatch.to(device), t, noise)
+                    x_t = self.q_sample(minibatch, t, noise)
                     predict_mean = self.p_mean_variance(model, x_t, t, clip_denoised=False, **minibatch_cond)["mean"]
                     true_mean, _, __ = self.q_posterior_mean_variance(minibatch, x_t, t)
                     loss = mean_flat((true_mean - predict_mean) ** 2)
