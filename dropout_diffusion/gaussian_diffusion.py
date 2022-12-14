@@ -12,6 +12,7 @@ import timeit
 import numpy as np
 import torch as th
 
+from tqdm import tqdm
 from .dist_util import dev
 from .losses import discretized_gaussian_log_likelihood, normal_kl
 from .nn import mean_flat
@@ -266,7 +267,7 @@ class GaussianDiffusion:
 
         # Foor loop through number of batches
         with th.no_grad():
-            for i in range(num_batch):
+            for i in tqdm(range(num_batch)):
                 print(i)
                 minibatch, minibatch_cond = next(data)
                 noise = th.rand(*minibatch.shape)
