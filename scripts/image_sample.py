@@ -46,8 +46,11 @@ def main():
             image_size=args.image_size,
             class_cond=args.class_cond,
         )
-        num_batch = int(10000 / args.batch_size)
-        data_shape = th.sum(args.img_size).item()
+        if int(args.num_to_correct_variance) % args.batch_size != 0:
+            num_batch = int(int(args.num_to_correct_variance)/ args.batch_size) + 1
+        else:
+            num_batch = int(int(args.num_to_correct_variance)/ args.batch_size)
+        data_shape = args.image_size * args.image_size * 3
         diffusion.calculate_corrected_reverse_variance(model, data, data_shape, num_batch=num_batch, batch_size=args.batch_size, device=dist_util.dev())
 
     logger.log("sampling...")
@@ -120,6 +123,7 @@ def create_argparser():
     defaults = dict(
         data_dir="",
         clip_denoised=False,
+        num_to_correct_variance=0,
         num_samples=10000,
         num_step_save=[0],
         batch_size=16,

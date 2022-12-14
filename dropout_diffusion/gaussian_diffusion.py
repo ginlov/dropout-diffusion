@@ -263,22 +263,26 @@ class GaussianDiffusion:
         correct_term = []
         for i in range(len(self.posterior_variance)):
             correct_term.append(0.0)
-        for i in range(num_batch):
-            minibatch, minibatch_cond = next(data)
-            noise = th.rand(*minibatch.shape)
-            if minibatch_cond is None:
-                minibatch_cond = {}
 
-            for t in range(len(self.posterior_variance)):
-                t = th.from_numpy([t]*batch_size).log().to(device)
-                x_t = self.q_sample(minibatch, t, noise)
-                predict_mean = self.p_mean_variance(model, t, clip_denoised=False, **minibatch_cond)["mean"]
-                true_mean, _, __ = self.q_posterior_mean_variance(minibatch, x_t, t)
-                loss = mean_flat((true_mean - predict_mean) ** 2)
-                correct_term[t] += loss.item()
+        # Foor loop through number of batches
+        with th.no_grad():
+            for i in range(num_batch):
+                print(i)
+                minibatch, minibatch_cond = next(data)
+                noise = th.rand(*minibatch.shape)
+                if minibatch_cond is None:
+                    minibatch_cond = {}
+
+                for j in range(len(self.posterior_variance)):
+                    t = th.from_numpy(np.array([j]*batch_size)).long().to(device)
+                    x_t = self.q_sample(minibatch, t, noise)
+                    predict_mean = self.p_mean_variance(model, x_t, t, clip_denoised=False, **minibatch_cond)["mean"]
+                    true_mean, _, __ = self.q_posterior_mean_variance(minibatch, x_t, t)
+                    loss = mean_flat((true_mean - predict_mean) ** 2)
+                    correct_term[j] += loss.mean().item()
                 
-        correct_term = np.array(correct_term) / num_batch
-        self.corrected_reverse_variance = self.posterior_variance + correct_term / data_shape
+        correct_term = np.array(correct_term) / (num_batch*data_shape)
+        self.corrected_reverse_variance = np.append(self.posterior_variance[0], self.posterior_variance[1:] + correct_term[1:])
         self.log_corrected_reverse_variance = np.log(np.append(self.corrected_reverse_variance[1], self.corrected_reverse_variance[1:]))
 
     def p_mean_variance(
