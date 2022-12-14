@@ -24,6 +24,7 @@ def model_and_diffusion_defaults():
         diffusion_dropout=0.0,
         learn_sigma=False,
         sigma_small=False,
+        correct_sigma=False,
         class_cond=False,
         diffusion_steps=1000,
         noise_schedule="linear",
@@ -42,6 +43,7 @@ def create_model_and_diffusion(
     class_cond,
     learn_sigma,
     sigma_small,
+    correct_sigma,
     num_channels,
     num_res_blocks,
     num_heads,
@@ -79,6 +81,7 @@ def create_model_and_diffusion(
         diffusion_dropout=diffusion_dropout,
         learn_sigma=learn_sigma,
         sigma_small=sigma_small,
+        correct_sigma=correct_sigma,
         noise_schedule=noise_schedule,
         use_kl=use_kl,
         predict_xstart=predict_xstart,
@@ -138,6 +141,7 @@ def create_gaussian_diffusion(
     diffusion_dropout=0.0,
     learn_sigma=False,
     sigma_small=False,
+    correct_sigma=False,
     noise_schedule="linear",
     use_kl=False,
     predict_xstart=False,
@@ -152,8 +156,20 @@ def create_gaussian_diffusion(
         loss_type = gd.LossType.RESCALED_MSE
     else:
         loss_type = gd.LossType.MSE
+
     if not timestep_respacing:
         timestep_respacing = [steps]
+
+    if learn_sigma:
+        model_var_type = gd.ModelVarType.LEARNED_RANGE
+    else:
+        if correct_sigma:
+            model_var_type = gd.ModelVarType.CORRECTED_VAR
+        elif sigma_small:
+            model_var_type = gd.ModelVarType.FIXED_SMALL
+        else:
+            model_var_type = gd.ModelVarType.FIXED_LARGE
+
     return SpacedDiffusion(
         use_timesteps=space_timesteps(steps, timestep_respacing),
         betas=betas,
@@ -162,15 +178,7 @@ def create_gaussian_diffusion(
         model_mean_type=(
             gd.ModelMeanType.EPSILON if not predict_xstart else gd.ModelMeanType.START_X
         ),
-        model_var_type=(
-            (
-                gd.ModelVarType.FIXED_LARGE
-                if not sigma_small
-                else gd.ModelVarType.FIXED_SMALL
-            )
-            if not learn_sigma
-            else gd.ModelVarType.LEARNED_RANGE
-        ),
+        model_var_type=model_var_type,
         loss_type=loss_type,
         rescale_timesteps=rescale_timesteps,
     )

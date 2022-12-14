@@ -11,6 +11,7 @@ import torch as th
 import torch.distributed as dist
 
 from dropout_diffusion import dist_util, logger
+from dropout_diffusion.image_datasets import load_data
 from dropout_diffusion.script_util import (
     NUM_CLASSES,
     add_dict_to_argparser,
@@ -37,6 +38,17 @@ def main():
     model.eval()
     diffusion.dropout_layer.to(dist_util.dev())
     diffusion.dropout_layer.eval()
+
+    if args.correct_sigma is True:
+        data = load_data(
+            data_dir=args.data_dir,
+            batch_size=args.batch_size,
+            image_size=args.image_size,
+            class_cond=args.class_cond,
+        )
+        num_batch = int(10000 / args.batch_size)
+        data_shape = th.sum(args.img_size).item()
+        diffusion.calculate_corrected_reverse_variance(model, data, data_shape, num_batch=num_batch, batch_size=args.batch_size, device=dist_util.dev())
 
     logger.log("sampling...")
     all_images = []
@@ -106,6 +118,7 @@ def main():
 
 def create_argparser():
     defaults = dict(
+        data_dir="",
         clip_denoised=False,
         num_samples=10000,
         num_step_save=[0],

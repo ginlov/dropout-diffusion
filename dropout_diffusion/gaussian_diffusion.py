@@ -97,6 +97,7 @@ class ModelVarType(enum.Enum):
     FIXED_SMALL = enum.auto()
     FIXED_LARGE = enum.auto()
     LEARNED_RANGE = enum.auto()
+    CORRECTED_VAR = enum.auto()
 
 
 class LossType(enum.Enum):
@@ -179,6 +180,8 @@ class GaussianDiffusion:
         self.posterior_log_variance_clipped = np.log(
             np.append(self.posterior_variance[1], self.posterior_variance[1:])
         )
+        self.corrected_reverse_variance = self.posterior_variance.copy()
+        self.log_corrected_reverse_variance = self.posterior_log_variance_clipped.copy()
         self.posterior_mean_coef1 = (
             betas * np.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
         )
@@ -253,6 +256,31 @@ class GaussianDiffusion:
         )
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
+    def calculate_corrected_reverse_variance(self, model, data, data_shape, num_batch, batch_size, device):
+        """
+        Correct reverse variance for imperfect mean
+        """
+        correct_term = []
+        for i in range(len(self.posterior_variance)):
+            correct_term.append(0.0)
+        for i in range(num_batch):
+            minibatch, minibatch_cond = next(data)
+            noise = th.rand(*minibatch.shape)
+            if minibatch_cond is None:
+                minibatch_cond = {}
+
+            for t in range(len(self.posterior_variance)):
+                t = th.from_numpy([t]*batch_size).log().to(device)
+                x_t = self.q_sample(minibatch, t, noise)
+                predict_mean = self.p_mean_variance(model, t, clip_denoised=False, **minibatch_cond)["mean"]
+                true_mean, _, __ = self.q_posterior_mean_variance(minibatch, x_t, t)
+                loss = mean_flat((true_mean - predict_mean) ** 2)
+                correct_term[t] += loss.item()
+                
+        correct_term = np.array(correct_term) / num_batch
+        self.corrected_reverse_variance = self.posterior_variance + correct_term / data_shape
+        self.log_corrected_reverse_variance = np.log(np.append(self.corrected_reverse_variance[1], self.corrected_reverse_variance[1:]))
+
     def p_mean_variance(
         self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None
     ):
@@ -310,6 +338,10 @@ class GaussianDiffusion:
                     self.posterior_variance,
                     self.posterior_log_variance_clipped,
                 ),
+                ModelVarType.CORRECTED_VAR: (
+                    self.corrected_reverse_variance,
+                    self.log_corrected_reverse_variance,
+                )
             }[self.model_var_type]
             model_variance = _extract_into_tensor(model_variance, t, x.shape)
             model_log_variance = _extract_into_tensor(model_log_variance, t, x.shape)
