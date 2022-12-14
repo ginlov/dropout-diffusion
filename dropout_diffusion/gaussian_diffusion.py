@@ -268,7 +268,6 @@ class GaussianDiffusion:
         # Foor loop through number of batches
         with th.no_grad():
             for i in tqdm(range(num_batch)):
-                print(i)
                 minibatch, minibatch_cond = next(data)
                 minibatch = minibatch.to(device)
                 noise = th.rand(*minibatch.shape).to(device)
