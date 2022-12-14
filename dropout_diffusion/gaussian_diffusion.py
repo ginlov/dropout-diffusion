@@ -270,7 +270,7 @@ class GaussianDiffusion:
             for i in tqdm(range(num_batch)):
                 print(i)
                 minibatch, minibatch_cond = next(data)
-                noise = th.rand(*minibatch.shape)
+                noise = th.rand(*minibatch.shape).to(device)
                 if minibatch_cond is None:
                     minibatch_cond = {}
 
