@@ -25,7 +25,7 @@ def main():
     args = create_argparser().parse_args()
 
     dist_util.setup_dist()
-    logger.configure()
+    logger.configure(log_suffix=args.suffix_prefix)
 
     logger.log("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(
@@ -107,7 +107,7 @@ def main():
             shape_str = "x".join([str(x) for x in arr.shape])
             out_path = os.path.join(
                 logger.get_dir(),
-                f"samples_{shape_str}_{args.num_step_save[len(args.num_step_save) - i - 1]}.npz",
+                f"{args.suffix_prefix}_samples_{shape_str}_{args.num_step_save[len(args.num_step_save) - i - 1]}.npz",
             )
             logger.log(f"saving to {out_path}")
             if args.class_cond:
@@ -129,6 +129,7 @@ def create_argparser():
         batch_size=16,
         use_ddim=False,
         model_path="",
+        suffix_prefix=""
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
