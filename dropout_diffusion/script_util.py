@@ -30,6 +30,7 @@ def model_and_diffusion_defaults():
         noise_schedule="linear",
         timestep_respacing="",
         use_kl=False,
+        predict_mean=False,
         predict_xstart=False,
         rescale_timesteps=True,
         rescale_learned_sigmas=True,
@@ -56,6 +57,7 @@ def create_model_and_diffusion(
     noise_schedule,
     timestep_respacing,
     use_kl,
+    predict_mean,
     predict_xstart,
     rescale_timesteps,
     rescale_learned_sigmas,
@@ -84,6 +86,7 @@ def create_model_and_diffusion(
         correct_sigma=correct_sigma,
         noise_schedule=noise_schedule,
         use_kl=use_kl,
+        predict_mean=predict_mean,
         predict_xstart=predict_xstart,
         rescale_timesteps=rescale_timesteps,
         rescale_learned_sigmas=rescale_learned_sigmas,
@@ -144,6 +147,7 @@ def create_gaussian_diffusion(
     correct_sigma=False,
     noise_schedule="linear",
     use_kl=False,
+    predict_mean=False,
     predict_xstart=False,
     rescale_timesteps=False,
     rescale_learned_sigmas=False,
@@ -170,14 +174,18 @@ def create_gaussian_diffusion(
         else:
             model_var_type = gd.ModelVarType.FIXED_LARGE
 
+    if predict_mean:
+        model_mean_type = gd.ModelMeanType.PREVIOUS_X
+    elif predict_xstart:
+        model_mean_type = gd.ModelMeanType.START_X
+    else:
+        model_mean_type = gd.ModelMeanType.EPSILON
     return SpacedDiffusion(
         use_timesteps=space_timesteps(steps, timestep_respacing),
         betas=betas,
         weight_clipping=weight_clipping,
         diffusion_dropout=diffusion_dropout,
-        model_mean_type=(
-            gd.ModelMeanType.EPSILON if not predict_xstart else gd.ModelMeanType.START_X
-        ),
+        model_mean_type=model_mean_type,
         model_var_type=model_var_type,
         loss_type=loss_type,
         rescale_timesteps=rescale_timesteps,
