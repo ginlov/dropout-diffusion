@@ -195,7 +195,7 @@ def create_gaussian_diffusion(
 def add_dict_to_argparser(parser, default_dict):
     for k, v in default_dict.items():
         if isinstance(v, list):
-            parser.add_argument(f"--{k}", nargs="+", type=type(v[0]))
+            parser.add_argument(f"--{k}", nargs="+", type=type(v[0]), default=0)
         else:
             v_type = type(v)
             if v is None:
