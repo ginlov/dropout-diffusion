@@ -57,6 +57,8 @@ def main():
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
         prefix_checkpoint=args.suffix_prefix,
+        api_key=args.api_key,
+        project_name=args.project_name,
     ).run_loop()
 
 
@@ -76,6 +78,8 @@ def create_argparser():
         use_fp16=False,
         fp16_scale_growth=1e-3,
         suffix_prefix="",
+        api_key="",
+        project_name="",
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

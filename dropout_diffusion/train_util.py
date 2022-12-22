@@ -20,6 +20,8 @@ from .fp16_util import (
 from .nn import update_ema
 from .resample import LossAwareSampler, UniformSampler
 
+import comet_ml
+
 # For ImageNet experiments, this was a good default value.
 # We found that the lg_loss_scale quickly climbed to
 # 20-21 within the first ~1K steps of training.
@@ -46,6 +48,8 @@ class TrainLoop:
         weight_decay=0.0,
         lr_anneal_steps=0,
         prefix_checkpoint="",
+        api_key="",
+        project_name="",
     ):
         self.model = model
         self.diffusion = diffusion
@@ -76,6 +80,16 @@ class TrainLoop:
         self.lg_loss_scale = INITIAL_LOG_LOSS_SCALE
         self.sync_cuda = th.cuda.is_available()
         self.prefix_checkpoint = prefix_checkpoint
+
+        self.api_key = api_key
+        self.project_name = project_name
+        if self.api_key != "":
+            self.experiment = comet_ml.Experiment(
+                api_key=self.api_key,
+                project_name=self.project_name
+            )
+        else:
+            self.experiment = None
 
         self._load_and_sync_parameters()
         if self.use_fp16:
@@ -163,23 +177,44 @@ class TrainLoop:
         self.model.convert_to_fp16()
 
     def run_loop(self):
-        while (
-            not self.lr_anneal_steps
-            or self.step + self.resume_step < self.lr_anneal_steps
-        ):
-            batch, cond = next(self.data)
-            self.run_step(batch, cond)
-            if self.step % self.log_interval == 0:
-                logger.dumpkvs()
-            if self.step % self.save_interval == 0:
+        if self.experiment is not None:
+            with self.experiment.context_manager("training"):
+                while (
+                    not self.lr_anneal_steps
+                    or self.step + self.resume_step < self.lr_anneal_steps
+                ):
+                    batch, cond = next(self.data)
+                    self.run_step(batch, cond)
+                    if self.step % self.log_interval == 0:
+                        logger.dumpkvs()
+                    if self.step % self.save_interval == 0:
+                        self.save()
+                        # Run for a finite amount of time in integration tests.
+                        if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
+                            return
+                    self.step += 1
+                # Save the last checkpoint if it wasn't already saved.
+                if (self.step - 1) % self.save_interval != 0:
+                    self.save()
+        else:
+            while (
+                not self.lr_anneal_steps
+                or self.step + self.resume_step < self.lr_anneal_steps
+            ):
+                batch, cond = next(self.data)
+                self.run_step(batch, cond)
+                if self.step % self.log_interval == 0:
+                    logger.dumpkvs()
+                if self.step % self.save_interval == 0:
+                    self.save()
+                    # Run for a finite amount of time in integration tests.
+                    if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
+                        return
+                self.step += 1
+            # Save the last checkpoint if it wasn't already saved.
+            if (self.step - 1) % self.save_interval != 0:
                 self.save()
-                # Run for a finite amount of time in integration tests.
-                if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
-                    return
-            self.step += 1
-        # Save the last checkpoint if it wasn't already saved.
-        if (self.step - 1) % self.save_interval != 0:
-            self.save()
+
 
     def run_step(self, batch, cond):
         self.forward_backward(batch, cond)
@@ -223,6 +258,8 @@ class TrainLoop:
             log_loss_dict(
                 self.diffusion, t, {k: v * weights for k, v in losses.items()}
             )
+            if self.experiment is not None:
+                self.experiment.log_metrics({k: th.mean(v*weights).item() for k, v in losses.items()}, step=self.step)
             if self.use_fp16:
                 loss_scale = 2**self.lg_loss_scale
                 (loss * loss_scale).backward()
