@@ -59,6 +59,7 @@ def main():
         prefix_checkpoint=args.suffix_prefix,
         api_key=args.api_key,
         project_name=args.project_name,
+        workspace=args.workspace,
     ).run_loop()
 
 
@@ -80,6 +81,7 @@ def create_argparser():
         suffix_prefix="",
         api_key="",
         project_name="",
+        workspace="",
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

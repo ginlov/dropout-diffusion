@@ -50,6 +50,7 @@ class TrainLoop:
         prefix_checkpoint="",
         api_key="",
         project_name="",
+        workspace="",
     ):
         self.model = model
         self.diffusion = diffusion
@@ -83,10 +84,12 @@ class TrainLoop:
 
         self.api_key = api_key
         self.project_name = project_name
+        self.workspace = workspace
         if self.api_key != "":
             self.experiment = comet_ml.Experiment(
                 api_key=self.api_key,
-                project_name=self.project_name
+                project_name=self.project_name,
+                workspace=self.workspace
             )
         else:
             self.experiment = None
