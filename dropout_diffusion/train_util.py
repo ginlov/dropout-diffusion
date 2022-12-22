@@ -261,13 +261,23 @@ class TrainLoop:
             log_loss_dict(
                 self.diffusion, t, {k: v * weights for k, v in losses.items()}
             )
-            if self.experiment is not None:
-                self.experiment.log_metrics({k: th.mean(v*weights).item() for k, v in losses.items()}, step=self.step)
             if self.use_fp16:
                 loss_scale = 2**self.lg_loss_scale
                 (loss * loss_scale).backward()
             else:
                 loss.backward()
+            if self.experiment is not None:
+                for k, v in losses.items():
+                    k_dict = {
+
+                    }
+                    test = v.detach().cpu().numpy()
+                    test_t = t.detach().cpu().numpy()
+                    for i in test.shape[0]:
+                        k_dict[f"{k}_{test_t[i]}"] = v[i]*weights[i].detach().cpu().item()
+                    self.experiment.log_metrics(k_dict, step=self.step)
+                # self.experiment.log_metrics({k: th.mean(v*weights).item() for k, v in losses.items()}, step=self.step)
+
 
     def optimize_fp16(self):
         if any(not th.isfinite(p.grad).all() for p in self.model_params):
