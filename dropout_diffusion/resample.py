@@ -165,3 +165,11 @@ class ReweightSampler(ScheduleSampler):
 
     def weights(self):
         return self._weights
+
+    def sample(self, batch_size, device):
+        w = self.weights()
+        p = w / np.sum(w)
+        indices_np = np.random.choice(len(p), size=(batch_size,), p=p)
+        indices = th.from_numpy(indices_np).long().to(device)
+        weights = th.from_numpy(np.array([1.0] * batch_size)).float().to(device)
+        return indices, weights
