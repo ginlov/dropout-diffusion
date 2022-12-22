@@ -268,6 +268,8 @@ class TrainLoop:
                 loss.backward()
             if self.experiment is not None:
                 for k, v in losses.items():
+                    if k != "loss":
+                        continue
                     k_dict = {
 
                     }
