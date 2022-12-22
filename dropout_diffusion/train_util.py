@@ -272,6 +272,7 @@ class TrainLoop:
 
                     }
                     test = v.detach().cpu().numpy()
+                    print(v)
                     test_t = t.detach().cpu().numpy()
                     for i in test.shape[0]:
                         k_dict[f"{k}_{test_t[i]}"] = v[i]*weights[i].detach().cpu().item()
