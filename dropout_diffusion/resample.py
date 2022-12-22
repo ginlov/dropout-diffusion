@@ -16,6 +16,8 @@ def create_named_schedule_sampler(name, diffusion):
         return UniformSampler(diffusion)
     elif name == "loss-second-moment":
         return LossSecondMomentResampler(diffusion)
+    elif name == "reweight":
+        return ReweightSampler(diffusion)
     else:
         raise NotImplementedError(f"unknown schedule sampler: {name}")
 
@@ -152,3 +154,14 @@ class LossSecondMomentResampler(LossAwareSampler):
 
     def _warmed_up(self):
         return (self._loss_counts == self.history_per_term).all()
+
+
+class ReweightSampler(ScheduleSampler):
+    def __init__(self, diffusion):
+        self.diffusion = diffusion
+        self._weights = 1.0 / diffusion.posterior_variance
+        # Re-recale weight
+        self._weights = self._weights / np.sum(self._weights)
+
+    def weights(self):
+        return self._weights

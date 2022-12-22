@@ -4,3 +4,4 @@ pillow
 black
 isort
 pre-commit
+comet-ml
