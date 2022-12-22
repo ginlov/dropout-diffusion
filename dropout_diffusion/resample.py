@@ -159,7 +159,7 @@ class LossSecondMomentResampler(LossAwareSampler):
 class ReweightSampler(ScheduleSampler):
     def __init__(self, diffusion):
         self.diffusion = diffusion
-        self._weights = 1.0 / diffusion.posterior_variance
+        self._weights = 1.0 / (diffusion.posterior_variance + 1e-4)
         # Re-recale weight
         self._weights = self._weights / np.sum(self._weights)
 
