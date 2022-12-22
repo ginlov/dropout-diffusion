@@ -64,10 +64,14 @@ def main():
     )
 
     logger.log("evaluating...")
-    run_bpd_evaluation(model, diffusion, data, args.num_samples, args.clip_denoised)
+    run_bpd_evaluation(
+        model, diffusion, data, args.num_samples, args.clip_denoised, args.suffix_prefix
+    )
 
 
-def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised):
+def run_bpd_evaluation(
+    model, diffusion, data, num_samples, clip_denoised, suffix_prefix
+):
     all_bpd = []
     all_metrics = {"vb": [], "mse": [], "xstart_mse": []}
     num_complete = 0
@@ -94,7 +98,9 @@ def run_bpd_evaluation(model, diffusion, data, num_samples, clip_denoised):
 
     if dist.get_rank() == 0:
         for name, terms in all_metrics.items():
-            out_path = os.path.join(logger.get_dir(), f"{name}_terms.npz")
+            out_path = os.path.join(
+                logger.get_dir(), f"{suffix_prefix}_{name}_terms.npz"
+            )
             logger.log(f"saving {name} terms to {out_path}")
             np.savez(out_path, np.mean(np.stack(terms), axis=0))
 
