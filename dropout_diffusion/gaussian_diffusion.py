@@ -320,6 +320,7 @@ class GaussianDiffusion:
 
         B, C = x.shape[:2]
         assert t.shape == (B,)
+        x = self.dropout_layer(x) * (1.0 - self.dropout_layer.p)
         model_output = model(x, self._scale_timesteps(t), **model_kwargs)
 
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
@@ -395,7 +396,9 @@ class GaussianDiffusion:
     def _predict_xstart_from_eps(self, x_t, t, eps):
         assert x_t.shape == eps.shape
         return (
-            _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
+            _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape)
+            * x_t
+            / (1 - self.dropout_layer.p)
             - _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
         )
 
@@ -780,8 +783,8 @@ class GaussianDiffusion:
             model_kwargs = {}
         if noise is None:
             noise = th.randn_like(x_start)
-        x_t_raw = self.q_sample(x_start, t, noise=noise)
-        x_t = self.dropout_layer(x_t_raw)
+        x_t = self.q_sample(x_start, t, noise=noise)
+        # x_t = self.dropout_layer(x_t_raw)
 
         terms = {}
 
@@ -806,7 +809,7 @@ class GaussianDiffusion:
             )
 
             true_mean, _, true_log_variance_clipped = self.q_posterior_mean_variance(
-                x_start=x_start, x_t=x_t_raw, t=t
+                x_start=x_start, x_t=x_t, t=t
             )
 
             if self.model_var_type in [
