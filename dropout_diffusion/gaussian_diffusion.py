@@ -761,10 +761,38 @@ class GaussianDiffusion:
         assert decoder_nll.shape == x_start.shape
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
 
+        if t == self.num_timesteps - 1:
+            decoder_nll_at_arbitrary_step = th.zeros(**decoder_nll.shape).to(dev())
+        else:
+
+            if self.model_var_type == ModelVarType.FIXED_SMALL:
+                log_scales = _extract_into_tensor(
+                    self.posterior_log_variance_clipped, t + 1, x_start.shape
+                )
+            elif self.model_var_type == ModelVarType.FIXED_LARGE:
+                log_scales = _extract_into_tensor(
+                    np.log(1.0 - self.alphas_cumprod), t, x_start.shape
+                )
+            elif self.model_var_type == ModelVarType.CORRECTED_VAR:
+                log_scales = _extract_into_tensor(
+                    self.log_corrected_reverse_variance, t, x_start.shape
+                )
+
+            decoder_nll_at_arbitrary_step = -discretized_gaussian_log_likelihood(
+                x_start, means=out["pred_xstart"], log_scales=log_scales
+            )
+            assert decoder_nll_at_arbitrary_step.shape == x_start.shape
+            decoder_nll_at_arbitrary_step = mean_flat(
+                decoder_nll_at_arbitrary_step
+            ) / np.log(2.0)
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         output = th.where((t == 0), decoder_nll, kl)
-        return {"output": output, "pred_xstart": out["pred_xstart"]}
+        return {
+            "output": output,
+            "pred_xstart": out["pred_xstart"],
+            "decoder_nll": decoder_nll_at_arbitrary_step,
+        }
 
     def training_losses(self, model, x_start, t, model_kwargs=None, noise=None):
         """
@@ -910,6 +938,7 @@ class GaussianDiffusion:
         vb = []
         xstart_mse = []
         mse = []
+        decoder = []
         for t in list(range(self.num_timesteps))[::-1]:
             t_batch = th.tensor([t] * batch_size, device=device)
             noise = th.randn_like(x_start)
@@ -924,6 +953,7 @@ class GaussianDiffusion:
                     clip_denoised=clip_denoised,
                     model_kwargs=model_kwargs,
                 )
+            decoder.append(out["decoder_nll"])
             vb.append(out["output"])
             xstart_mse.append(mean_flat((out["pred_xstart"] - x_start) ** 2))
             eps = self._predict_eps_from_xstart(x_t, t_batch, out["pred_xstart"])
@@ -932,6 +962,7 @@ class GaussianDiffusion:
         vb = th.stack(vb, dim=1)
         xstart_mse = th.stack(xstart_mse, dim=1)
         mse = th.stack(mse, dim=1)
+        decoder = th.stack(decoder, dim=1)
 
         prior_bpd = self._prior_bpd(x_start)
         total_bpd = vb.sum(dim=1) + prior_bpd
@@ -941,6 +972,7 @@ class GaussianDiffusion:
             "vb": vb,
             "xstart_mse": xstart_mse,
             "mse": mse,
+            "decoder": decoder,
         }
 
 
