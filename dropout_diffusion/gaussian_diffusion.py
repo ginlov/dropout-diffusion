@@ -762,7 +762,7 @@ class GaussianDiffusion:
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
 
         if t[0].item() == self.num_timesteps - 1:
-            decoder_nll_at_arbitrary_step = th.zeros(**decoder_nll.shape).to(dev())
+            decoder_nll_at_arbitrary_step = th.zeros(*decoder_nll.shape).to(dev())
         else:
 
             if self.model_var_type == ModelVarType.FIXED_SMALL:
