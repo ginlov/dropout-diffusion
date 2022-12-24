@@ -73,7 +73,7 @@ def run_bpd_evaluation(
     model, diffusion, data, num_samples, clip_denoised, suffix_prefix
 ):
     all_bpd = []
-    all_metrics = {"vb": [], "mse": [], "xstart_mse": []}
+    all_metrics = {"vb": [], "mse": [], "xstart_mse": [], "decoder_nll": []}
     num_complete = 0
     while num_complete < num_samples:
         batch, model_kwargs = next(data)

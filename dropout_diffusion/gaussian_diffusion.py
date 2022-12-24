@@ -972,7 +972,7 @@ class GaussianDiffusion:
             "vb": vb,
             "xstart_mse": xstart_mse,
             "mse": mse,
-            "decoder": decoder,
+            "decoder_nll": decoder,
         }
 
 
