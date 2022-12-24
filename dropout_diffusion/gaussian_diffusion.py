@@ -770,8 +770,11 @@ class GaussianDiffusion:
                     self.posterior_log_variance_clipped, t + 1, x_start.shape
                 )
             elif self.model_var_type == ModelVarType.FIXED_LARGE:
+                # log_scales = _extract_into_tensor(
+                #     np.log(1.0 - self.alphas_cumprod), t, x_start.shape
+                # )
                 log_scales = _extract_into_tensor(
-                    np.log(1.0 - self.alphas_cumprod), t, x_start.shape
+                    self.posterior_log_variance_clipped, t + 1, x_start.shape
                 )
             elif self.model_var_type == ModelVarType.CORRECTED_VAR:
                 log_scales = _extract_into_tensor(
