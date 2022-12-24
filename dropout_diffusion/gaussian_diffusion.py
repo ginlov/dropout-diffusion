@@ -767,18 +767,24 @@ class GaussianDiffusion:
 
             if self.model_var_type == ModelVarType.FIXED_SMALL:
                 log_scales = _extract_into_tensor(
-                    self.posterior_log_variance_clipped, 0, x_start.shape
+                    self.posterior_log_variance_clipped,
+                    th.tensor([0] * x_start.shape[0], device=dev()),
+                    x_start.shape,
                 )
             elif self.model_var_type == ModelVarType.FIXED_LARGE:
                 # log_scales = _extract_into_tensor(
                 #     np.log(1.0 - self.alphas_cumprod), t, x_start.shape
                 # )
                 log_scales = _extract_into_tensor(
-                    self.posterior_log_variance_clipped, 0, x_start.shape
+                    self.posterior_log_variance_clipped,
+                    th.tensor([0] * x_start.shape[0], device=dev()),
+                    x_start.shape,
                 )
             elif self.model_var_type == ModelVarType.CORRECTED_VAR:
                 log_scales = _extract_into_tensor(
-                    self.log_corrected_reverse_variance, 0, x_start.shape
+                    self.log_corrected_reverse_variance,
+                    th.tensor([0] * x_start.shape[0], device=dev()),
+                    x_start.shape,
                 )
 
             decoder_nll_at_arbitrary_step = -discretized_gaussian_log_likelihood(
