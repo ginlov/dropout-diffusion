@@ -779,7 +779,7 @@ class GaussianDiffusion:
                 )
 
             decoder_nll_at_arbitrary_step = -discretized_gaussian_log_likelihood(
-                x_start, means=out["pred_xstart"], log_scales=log_scales
+                x_start, means=out["pred_xstart"], log_scales=0.5 * log_scales
             )
             assert decoder_nll_at_arbitrary_step.shape == x_start.shape
             decoder_nll_at_arbitrary_step = mean_flat(
