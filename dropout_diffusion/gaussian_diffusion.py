@@ -761,7 +761,7 @@ class GaussianDiffusion:
         assert decoder_nll.shape == x_start.shape
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
 
-        if t == self.num_timesteps - 1:
+        if t[0].item() == self.num_timesteps - 1:
             decoder_nll_at_arbitrary_step = th.zeros(**decoder_nll.shape).to(dev())
         else:
 
