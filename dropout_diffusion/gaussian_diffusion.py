@@ -786,9 +786,11 @@ class GaussianDiffusion:
             #         th.tensor([0] * x_start.shape[0], device=dev()),
             #         x_start.shape,
             #     )
-            log_scales = (
-                th.ones(*x_start.shape) * th.log(th.tensor(1 / (510 * 2))).item()
-            )
+            # log_scales = (
+            #     th.ones(*x_start.shape) * th.log(th.tensor(1 / (510 * 2))).item()
+            # )
+            log_scales = th.ones(*x_start.shape) * th.log(self.betas[0]).item()
+
             log_scales = log_scales.to(dev())
 
             decoder_nll_at_arbitrary_step = -discretized_gaussian_log_likelihood(
