@@ -127,6 +127,7 @@ def create_argparser():
         num_samples=10000,
         num_step_save=[0],
         batch_size=16,
+        save_sample=False,
         use_ddim=False,
         model_path="",
         suffix_prefix=""

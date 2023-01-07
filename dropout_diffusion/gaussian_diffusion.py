@@ -472,6 +472,7 @@ class GaussianDiffusion:
         device=None,
         progress=False,
         save_noise=False,
+        save_sample=False,
     ):
         """
         Generate samples from the model.
@@ -511,7 +512,10 @@ class GaussianDiffusion:
         ):
             final = sample
             if int(t) in num_step_save:
-                result_sample.append(x_start)
+                if save_sample:
+                    result_sample.append(final["sample"])
+                else:
+                    result_sample.append(x_start)
             if save_noise is True:
                 saved_noise.append(final["noise"])
         if save_noise is True:
