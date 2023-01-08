@@ -75,6 +75,7 @@ def main():
             clip_denoised=args.clip_denoised,
             model_kwargs=model_kwargs,
             num_step_save=args.num_step_save,
+            save_sample=args.save_sample,
         )
         # sample *= 1 / (1 - args.diffusion_dropout)
         for i, sample in enumerate(sample_list):
