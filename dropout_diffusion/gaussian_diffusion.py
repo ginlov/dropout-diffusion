@@ -764,54 +764,12 @@ class GaussianDiffusion:
         assert decoder_nll.shape == x_start.shape
         decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
 
-        if t[0].item() == self.num_timesteps - 1:
-            decoder_nll_at_arbitrary_step = th.zeros(*decoder_nll.shape).to(dev())
-        else:
-
-            # if self.model_var_type == ModelVarType.FIXED_SMALL:
-            #     log_scales = _extract_into_tensor(
-            #         self.posterior_log_variance_clipped,
-            #         th.tensor([0] * x_start.shape[0], device=dev()),
-            #         x_start.shape,
-            #     )
-            # elif self.model_var_type == ModelVarType.FIXED_LARGE:
-            #     # log_scales = _extract_into_tensor(
-            #     #     np.log(1.0 - self.alphas_cumprod), t, x_start.shape
-            #     # )
-            #     log_scales = _extract_into_tensor(
-            #         self.posterior_log_variance_clipped,
-            #         th.tensor([0] * x_start.shape[0], device=dev()),
-            #         x_start.shape,
-            #     )
-            # elif self.model_var_type == ModelVarType.CORRECTED_VAR:
-            #     log_scales = _extract_into_tensor(
-            #         self.log_corrected_reverse_variance,
-            #         th.tensor([0] * x_start.shape[0], device=dev()),
-            #         x_start.shape,
-            #     )
-            # log_scales = (
-            #     th.ones(*x_start.shape) * th.log(th.tensor(1 / (510 * 2))).item()
-            # )
-            log_scales = (
-                th.ones(*x_start.shape) * th.log(th.tensor(self.betas[0])).item()
-            )
-
-            log_scales = log_scales.to(dev())
-
-            decoder_nll_at_arbitrary_step = -discretized_gaussian_log_likelihood(
-                x_start, means=out["pred_xstart"], log_scales=0.5 * log_scales
-            )
-            assert decoder_nll_at_arbitrary_step.shape == x_start.shape
-            decoder_nll_at_arbitrary_step = mean_flat(
-                decoder_nll_at_arbitrary_step
-            ) / np.log(2.0)
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         output = th.where((t == 0), decoder_nll, kl)
         return {
             "output": output,
-            "pred_xstart": out["pred_xstart"],
-            "decoder_nll": decoder_nll_at_arbitrary_step,
+            "pred_xstart": out["pred_xstart"]
         }
 
     def training_losses(self, model, x_start, t, model_kwargs=None, noise=None):
