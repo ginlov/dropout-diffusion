@@ -916,7 +916,6 @@ class GaussianDiffusion:
         vb = []
         xstart_mse = []
         mse = []
-        decoder = []
         for t in list(range(self.num_timesteps))[::-1]:
             t_batch = th.tensor([t] * batch_size, device=device)
             noise = th.randn_like(x_start)
@@ -931,7 +930,6 @@ class GaussianDiffusion:
                     clip_denoised=clip_denoised,
                     model_kwargs=model_kwargs,
                 )
-            decoder.append(out["decoder_nll"])
             vb.append(out["output"])
             xstart_mse.append(mean_flat((out["pred_xstart"] - x_start) ** 2))
             eps = self._predict_eps_from_xstart(x_t, t_batch, out["pred_xstart"])
