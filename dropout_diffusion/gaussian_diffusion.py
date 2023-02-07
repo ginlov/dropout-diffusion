@@ -938,7 +938,6 @@ class GaussianDiffusion:
         vb = th.stack(vb, dim=1)
         xstart_mse = th.stack(xstart_mse, dim=1)
         mse = th.stack(mse, dim=1)
-        decoder = th.stack(decoder, dim=1)
 
         prior_bpd = self._prior_bpd(x_start)
         total_bpd = vb.sum(dim=1) + prior_bpd
@@ -948,7 +947,6 @@ class GaussianDiffusion:
             "vb": vb,
             "xstart_mse": xstart_mse,
             "mse": mse,
-            "decoder_nll": decoder,
         }
 
 
