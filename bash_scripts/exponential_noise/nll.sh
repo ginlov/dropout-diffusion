@@ -7,4 +7,4 @@ export NLL_FLAGS="--batch_size 64 --data_dir cifar_train --suffix_prefix baselin
 export OPENAI_LOGDIR="log"
 export OPENAI_LOG_FORMAT="stdout"
 
-python scripts/image_train.py $MODEL_FLAGS $DIFFUSION_FLAGS $NLL_FLAGS
+python scripts/image_nll.py $MODEL_FLAGS $DIFFUSION_FLAGS $NLL_FLAGS
