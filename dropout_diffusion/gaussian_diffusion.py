@@ -351,8 +351,8 @@ class GaussianDiffusion:
                     self.posterior_log_variance_clipped,
                 ),
                 ModelVarType.CORRECTED_VAR: (
-                    self.corrected_reverse_variance,
-                    self.log_corrected_reverse_variance,
+                    np.append(self.posterior_variance[1], self.corrected_reverse_variance[1:]),
+                    np.log(np.append(self.posterior_variance[1], self.corrected_reverse_variance[1:])),
                 ),
             }[self.model_var_type]
             model_variance = _extract_into_tensor(model_variance, t, x.shape)
