@@ -5,3 +5,4 @@ log*/
 sample_log/
 venv/
 .DS_Store
+notebook/*
