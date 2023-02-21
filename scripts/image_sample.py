@@ -76,6 +76,7 @@ def main():
             model_kwargs=model_kwargs,
             num_step_save=args.num_step_save,
             save_sample=args.save_sample,
+            remember_x0=args.remember_x0
         )
         # sample *= 1 / (1 - args.diffusion_dropout)
         for i, sample in enumerate(sample_list):
@@ -126,6 +127,7 @@ def create_argparser():
         clip_denoised=False,
         num_to_correct_variance=0,
         num_samples=10000,
+        remember_x0=False,
         num_step_save=[0],
         batch_size=16,
         save_sample=False,

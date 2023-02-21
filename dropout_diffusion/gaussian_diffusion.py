@@ -293,7 +293,7 @@ class GaussianDiffusion:
         self.log_corrected_reverse_variance = np.log(self.corrected_reverse_variance)
 
     def p_mean_variance(
-        self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None
+        self, model, x, t, clip_denoised=True, denoised_fn=None, previous_x0=None, model_kwargs=None
     ):
         """
         Apply the model to get p(x_{t-1} | x_t), as well as a prediction of
@@ -377,6 +377,8 @@ class GaussianDiffusion:
                 pred_xstart = process_xstart(
                     self._predict_xstart_from_eps(x_t=x, t=t, eps=model_output)
                 )
+            if previous_x0 is not None:
+                pred_xstart = 0.95*pred_xstart + 0.05*previous_x0
             model_mean, _, _ = self.q_posterior_mean_variance(
                 x_start=pred_xstart, x_t=x, t=t
             )
@@ -423,7 +425,7 @@ class GaussianDiffusion:
         return t
 
     def p_sample(
-        self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None
+        self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None, previous_x0=None
     ):
         """
         Sample x_{t-1} from the model at the given timestep.
@@ -447,6 +449,7 @@ class GaussianDiffusion:
             clip_denoised=clip_denoised,
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
+            previous_x0=previous_x0
         )
         noise = th.randn_like(x)
         nonzero_mask = (
@@ -472,6 +475,7 @@ class GaussianDiffusion:
         progress=False,
         save_noise=False,
         save_sample=False,
+        remember_x0=False
     ):
         """
         Generate samples from the model.
@@ -508,6 +512,7 @@ class GaussianDiffusion:
             model_kwargs=model_kwargs,
             device=device,
             progress=progress,
+            remember_x0=remember_x0
         ):
             final = sample
             if int(t) in num_step_save:
@@ -531,6 +536,7 @@ class GaussianDiffusion:
         model_kwargs=None,
         device=None,
         progress=False,
+        remember_x0=False
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -554,7 +560,7 @@ class GaussianDiffusion:
             from tqdm.auto import tqdm
 
             indices = tqdm(indices)
-
+        x0_remember = None
         for i in indices:
             t = th.tensor([i] * shape[0], device=device)
             with th.no_grad():
@@ -565,7 +571,12 @@ class GaussianDiffusion:
                     clip_denoised=clip_denoised,
                     denoised_fn=denoised_fn,
                     model_kwargs=model_kwargs,
+                    previous_x0=x0_remember
                 )
+                if remember_x0:
+                    x0_remember =  out["pred_xstart"]
+                else:
+                    x0_remember = None
                 yield out, out["pred_xstart"], t[0].item()
                 img = out["sample"]
 
