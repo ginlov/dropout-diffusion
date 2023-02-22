@@ -573,7 +573,7 @@ class GaussianDiffusion:
                     model_kwargs=model_kwargs,
                     previous_x0=x0_remember
                 )
-                if remember_x0:
+                if remember_x0 and i < 0.1 * self.num_timesteps:
                     x0_remember =  out["pred_xstart"]
                 else:
                     x0_remember = None
